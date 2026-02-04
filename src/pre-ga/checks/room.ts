@@ -20,6 +20,17 @@ export function checkRoomCapacityUPJ(offering: any): RoomCheckResult {
     };
   }
 
+  if (
+    typeof students !== "number" ||
+    isNaN(students) ||
+    students <= 0
+  ) {
+    return {
+      ok: false,
+      reason: "ROOM_FAIL: Jumlah mahasiswa tidak valid",
+    };
+  }
+
   const requiredSessions = Math.ceil(students / capacity);
 
   return {
