@@ -1,0 +1,115 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "sqlite"
+}
+
+model Lecturer {
+  id           Int     @id @default(autoincrement())
+  name         String
+  isStructural Boolean
+
+  offeringLecturers CourseOfferingLecturer[]
+}
+
+model ProgramStudy {
+  id   Int    @id @default(autoincrement())
+  name String
+
+  courses Course[]
+}
+
+model Course {
+  id                  Int     @id @default(autoincrement())
+  name                String
+  credits             Int
+  requiresSpecialRoom Boolean
+
+  programStudyId Int
+  programStudy   ProgramStudy @relation(fields: [programStudyId], references: [id])
+
+  offerings            CourseOffering[]
+  facilityRequirements CourseFacilityRequirement[]
+}
+
+model Facility {
+  id          Int     @id @default(autoincrement())
+  name        String
+  description String?
+
+  roomFacilities     RoomFacility[]
+  courseRequirements CourseFacilityRequirement[]
+}
+
+model Room {
+  id       Int    @id @default(autoincrement())
+  name     String
+  capacity Int
+  roomType String
+
+  facilities RoomFacility[]
+  offerings  CourseOffering[]
+}
+
+model RoomFacility {
+  roomId     Int
+  facilityId Int
+
+  room     Room     @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  facility Facility @relation(fields: [facilityId], references: [id], onDelete: Cascade)
+
+  @@id([roomId, facilityId])
+}
+
+model CourseFacilityRequirement {
+  courseId   Int
+  facilityId Int
+
+  course   Course   @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  facility Facility @relation(fields: [facilityId], references: [id], onDelete: Cascade)
+
+  @@id([courseId, facilityId])
+}
+
+model TimeSlot {
+  id        Int    @id @default(autoincrement())
+  day       String
+  startTime String
+  endTime   String
+}
+
+model CourseOffering {
+  id                    Int     @id @default(autoincrement())
+  academicYear          String
+  semester              String
+  effectiveStudentCount Int
+  totalSessions         Int
+  isParallel            Boolean
+
+  courseId Int
+  course   Course @relation(fields: [courseId], references: [id])
+
+  roomId Int?
+  room   Room? @relation(fields: [roomId], references: [id])
+
+  lecturers CourseOfferingLecturer[]
+}
+
+model CourseOfferingLecturer {
+  offeringId Int
+  lecturerId Int
+
+  offering CourseOffering @relation(fields: [offeringId], references: [id], onDelete: Cascade)
+  lecturer Lecturer       @relation(fields: [lecturerId], references: [id], onDelete: Cascade)
+
+  @@id([offeringId, lecturerId])
+}
