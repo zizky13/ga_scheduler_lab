@@ -4,7 +4,9 @@ import { runPreGA } from "../../../pre-ga/validator.js";
 
 describe("Pre-GA Validator Integration", () => {
 
-  it("Should mark facility-mismatch offering as INFEASIBLE", async () => {
+    it("Should separate feasible and infeasible offerings", async () => {
+
+    // --- Arrange minimal data ---
     const program = await prisma.programStudy.create({
       data: { name: "Informatika" },
     });
@@ -18,6 +20,17 @@ describe("Pre-GA Validator Integration", () => {
         name: "Classroom",
         capacity: 45,
         roomType: "CLASSROOM",
+      },
+    });
+
+    const labRoom = await prisma.room.create({
+      data: {
+        name: "Lab Room",
+        capacity: 45,
+        roomType: "LAB",
+        facilities: {
+          create: [{ facilityId: lab.id }],
+        },
       },
     });
 
@@ -37,7 +50,8 @@ describe("Pre-GA Validator Integration", () => {
       data: { name: "Dr A", isStructural: false },
     });
 
-    const offering = await prisma.courseOffering.create({
+    // ❌ Infeasible (facility mismatch)
+    const badOffering = await prisma.courseOffering.create({
       data: {
         academicYear: "2025/2026",
         semester: "GANJIL",
@@ -52,12 +66,30 @@ describe("Pre-GA Validator Integration", () => {
       },
     });
 
-    const results = await runPreGA();
+    // ✅ Feasible
+    const goodOffering = await prisma.courseOffering.create({
+      data: {
+        academicYear: "2025/2026",
+        semester: "GANJIL",
+        effectiveStudentCount: 30,
+        totalSessions: 14,
+        isParallel: false,
+        courseId: course.id,
+        roomId: labRoom.id,
+        lecturers: {
+          create: [{ lecturerId: lecturer.id }],
+        },
+      },
+    });
 
-    const tested = results.find(r => r.offeringId === offering.id);
 
-    expect(tested?.status).toBe("INFEASIBLE");
-    expect(tested?.reason).toContain("FACILITY_FAIL");
+
+    const output = await runPreGA();
+    const feasibleIds = output.feasible.map(f => f.offeringId);
+    const infeasibleIds = output.infeasible.map(i => i.offeringId);
+
+    expect(feasibleIds).toContain(goodOffering.id);
+    expect(infeasibleIds).toContain(badOffering.id);
   });
 
 });

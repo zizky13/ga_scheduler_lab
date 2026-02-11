@@ -1,5 +1,6 @@
 import { prisma } from "../db/client.js";
 import type { PreGAResult } from "./result.js";
+import type { PreGACandidate, PreGAOutput } from "./candidate.js";
 
 // checks
 import { checkDataIntegrity } from "./checks/integrity.js";
@@ -9,7 +10,7 @@ import { checkFacilityCompatibility } from "./checks/facility.js";
 import { checkLecturerAvailability } from "./checks/lecturer.js";
 import { checkAcademicPolicy } from "./checks/policy.js";
 
-export async function runPreGA(): Promise<PreGAResult[]> {
+export async function runPreGA(): Promise<PreGAOutput> {
     const offerings = await prisma.courseOffering.findMany({
     include: {
         course: {
@@ -30,15 +31,17 @@ export async function runPreGA(): Promise<PreGAResult[]> {
     },
     });
 
-  const results: PreGAResult[] = [];
+  const allTimeSlots = await prisma.timeSlot.findMany();
+  const feasible: PreGACandidate[] = [];
+  const infeasible: { offeringId: number; reason: string }[] = [];
+
 
   for (const offering of offerings) {
     // STEP 1 — Integrity
     const integrity = checkDataIntegrity(offering);
     if (!integrity.ok) {
-      results.push({
+      infeasible.push({
         offeringId: offering.id,
-        status: "INFEASIBLE",
         reason: integrity.reason,
       });
       continue;
@@ -47,9 +50,8 @@ export async function runPreGA(): Promise<PreGAResult[]> {
     // STEP 2 — Room (UPJ-aware)
     const roomResult = checkRoomCapacityUPJ(offering);
     if (!roomResult.ok) {
-      results.push({
+      infeasible.push({
         offeringId: offering.id,
-        status: "INFEASIBLE",
         reason: roomResult.reason,
       });
       continue;
@@ -62,9 +64,8 @@ export async function runPreGA(): Promise<PreGAResult[]> {
     );
 
     if (!temporalResult.ok) {
-      results.push({
+      infeasible.push({
         offeringId: offering.id,
-        status: "INFEASIBLE",
         reason: temporalResult.reason,
       });
       continue;
@@ -73,9 +74,8 @@ export async function runPreGA(): Promise<PreGAResult[]> {
     // STEP 4 — Facility Compatibility
     const facilityResult = checkFacilityCompatibility(offering);
     if (!facilityResult.ok) {
-      results.push({
+      infeasible.push({
         offeringId: offering.id,
-        status: "INFEASIBLE",
         reason: facilityResult.reason,
       });
       continue;
@@ -85,9 +85,8 @@ export async function runPreGA(): Promise<PreGAResult[]> {
     const lecturerResult = checkLecturerAvailability(offering);
 
     if (!lecturerResult.ok) {
-    results.push({
+    infeasible.push({
         offeringId: offering.id,
-        status: "INFEASIBLE",
         reason: lecturerResult.reason,
     });
     continue;
@@ -100,20 +99,22 @@ export async function runPreGA(): Promise<PreGAResult[]> {
     );
 
     if (!policyResult.ok) {
-    results.push({
+    infeasible.push({
         offeringId: offering.id,
-        status: "INFEASIBLE",
         reason: policyResult.reason,
     });
     continue;
     }
 
     // PASSED ALL PRE-GA CHECKS
-    results.push({
+    feasible.push({
       offeringId: offering.id,
-      status: "FEASIBLE",
+      requiredSessions: roomResult.requiredSessions,
+      roomId: offering.room!.id,
+      lecturerIds: offering.lecturers.map(l => l.lecturer.id),
+      possibleTimeSlotIds: allTimeSlots.map(t => t.id),
     });
   }
 
-  return results;
+  return {feasible, infeasible};
 }
