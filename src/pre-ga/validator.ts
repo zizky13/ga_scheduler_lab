@@ -6,6 +6,8 @@ import { checkDataIntegrity } from "./checks/integrity.js";
 import { checkRoomCapacityUPJ } from "./checks/room.js";
 import { checkTemporalSufficiency } from "./checks/temporal.js";
 import { checkFacilityCompatibility } from "./checks/facility.js";
+import { checkLecturerAvailability } from "./checks/lecturer.js";
+import { checkAcademicPolicy } from "./checks/policy.js";
 
 export async function runPreGA(): Promise<PreGAResult[]> {
     const offerings = await prisma.courseOffering.findMany({
@@ -20,7 +22,11 @@ export async function runPreGA(): Promise<PreGAResult[]> {
             facilities: true,
         },
         },
-        lecturers: true,
+        lecturers: {
+        include: {
+            lecturer: true,
+        },
+        },
     },
     });
 
@@ -75,7 +81,32 @@ export async function runPreGA(): Promise<PreGAResult[]> {
       continue;
     }
 
+    // STEP 5 — Lecturer Availability
+    const lecturerResult = checkLecturerAvailability(offering);
 
+    if (!lecturerResult.ok) {
+    results.push({
+        offeringId: offering.id,
+        status: "INFEASIBLE",
+        reason: lecturerResult.reason,
+    });
+    continue;
+    }
+
+    // STEP 6 — Academic Policy
+    const policyResult = checkAcademicPolicy(
+    offering,
+    roomResult.requiredSessions
+    );
+
+    if (!policyResult.ok) {
+    results.push({
+        offeringId: offering.id,
+        status: "INFEASIBLE",
+        reason: policyResult.reason,
+    });
+    continue;
+    }
 
     // PASSED ALL PRE-GA CHECKS
     results.push({
