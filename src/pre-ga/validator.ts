@@ -1,5 +1,4 @@
 import { prisma } from "../db/client.js";
-import type { PreGAResult } from "./result.js";
 import type { PreGACandidate, PreGAOutput } from "./candidate.js";
 
 // checks
