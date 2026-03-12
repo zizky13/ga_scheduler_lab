@@ -1,8 +1,5 @@
 import { singlePointCrossover } from "./crossovers/singlePoint.js";
 import { uniformCrossover } from "./crossovers/uniform.js";
-import { runOneGeneration } from "./ga/experiment.js";
-import { evaluateFitness } from "./ga/fitness.js";
-import { generateInitialPopulation } from "./ga/population.js";
 import { runGA } from "./ga/runGA.js";
 import { stressTest } from "./ga/stressTest.js";
 import { runPreGA } from "./pre-ga/validator.js";
@@ -15,7 +12,7 @@ async function main() {
     populationSize: 50,
     generations: 100,
     tournamentSize: 3,
-    mutationRate: 0.5,
+    mutationRate: 0.15,
     elitisimCount: 2
   }
 

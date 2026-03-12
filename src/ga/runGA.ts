@@ -15,6 +15,13 @@ interface GAConfig {
     crossover: CrossoverOperator;
 }
 
+const lecturerStructuralMap = new Map<number, boolean>([
+  [1, true],
+  [2, true],
+  [3, false],
+  [4, true]
+]);
+
 export function runGA(candidates: PreGACandidate[], config: GAConfig) {
     let population = generateInitialPopulation(candidates, config.populationSize);
 
@@ -22,14 +29,24 @@ export function runGA(candidates: PreGACandidate[], config: GAConfig) {
 
     for (let gen = 0; gen < config.generations; gen++) {
         // eval fitness
-        const evaluated = population.map(ch => ({
-            chromosome: ch,
-            fitness: evaluateFitness(ch, candidates).fitness
-        }))
+        const evaluated = population.map(ch => {
+            const result = evaluateFitness(ch, candidates, lecturerStructuralMap);
 
+            return {
+                chromosome: ch,
+                fitness: result.fitness,
+                hardViolations: result.hardViolations,
+                softPenalty: result.softPenalty
+            }
+        })
         evaluated.sort((a, b) => b.fitness - a.fitness);
 
-        history.push(evaluated[0]!.fitness);
+        const best = evaluated[0]!;
+        const avgFitness = evaluated.reduce((sum, e) => sum + e.fitness, 0) / evaluated.length;
+        console.log(
+            `Gen ${gen + 1} | best=${best.fitness.toFixed(3)} | avg=${avgFitness.toFixed(3)} | hard=${best.hardViolations} | soft=${best.softPenalty}`
+        );
+        history.push(best.fitness);
 
         const newPopulation: Chromosome[] = [];
 
@@ -45,8 +62,13 @@ export function runGA(candidates: PreGACandidate[], config: GAConfig) {
 
             const [child1, child2] = config.crossover(parent1, parent2);
 
+            console.log("child1", child1);
+            console.log("child2", child2);
             const mutated1 = mutateChromosome(child1, candidates, config.mutationRate);
             const mutated2 = mutateChromosome(child2, candidates, config.mutationRate);
+            console.log("mutated1", mutated1);
+            console.log("mutated2", mutated2);
+
 
             newPopulation.push(mutated1, mutated2);
 
@@ -54,7 +76,10 @@ export function runGA(candidates: PreGACandidate[], config: GAConfig) {
                 newPopulation.push(mutated2);
             }
         }
+
+        console.log(evaluated.map(e => e.hardViolations));
         population = newPopulation;
     }
+    
     return history;
 }

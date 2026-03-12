@@ -1,6 +1,6 @@
 import { generateInitialPopulation } from "./population.js";
 import { tournamentSelection } from "./selection.js";
-import { evaluateFitness } from "./fitness.js";
+import { evaluateHardFitness } from "./fitness.js";
 import type { CrossoverOperator } from "./types.js";
 import type { PreGACandidate } from "../pre-ga/candidate.js";
 
@@ -18,7 +18,7 @@ export function runOneGeneration(candidates: PreGACandidate[], crossover: Crosso
         newPopulation.push(child1, child2);
     }
 
-    const fitnessValue = newPopulation.map(ch => evaluateFitness(ch, candidates).fitness);
+    const fitnessValue = newPopulation.map(ch => evaluateHardFitness(ch, candidates).fitness);
 
     const bestFitness = Math.max(...fitnessValue);
 

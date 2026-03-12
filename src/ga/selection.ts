@@ -1,6 +1,6 @@
 import type { Chromosome } from "./chromosome.js";
 import type { PreGACandidate } from "../pre-ga/candidate.js";
-import { evaluateFitness } from "./fitness.js";
+import { evaluateHardFitness } from "./fitness.js";
 
 export function tournamentSelection(population: Chromosome[], candidates: PreGACandidate[], tournamentSize: number): Chromosome {
     let best: Chromosome | null = null;
@@ -10,7 +10,7 @@ export function tournamentSelection(population: Chromosome[], candidates: PreGAC
         const randomIndex = Math.floor(Math.random() * population.length);
         const contender = population[randomIndex]!;
 
-        const { fitness } = evaluateFitness(contender, candidates);
+        const { fitness } = evaluateHardFitness(contender, candidates);
 
         if (fitness > bestFitness) {
             bestFitness = fitness;
