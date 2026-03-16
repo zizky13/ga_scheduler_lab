@@ -15,14 +15,7 @@ interface GAConfig {
     crossover: CrossoverOperator;
 }
 
-const lecturerStructuralMap = new Map<number, boolean>([
-  [1, true],
-  [2, true],
-  [3, false],
-  [4, true]
-]);
-
-export function runGA(candidates: PreGACandidate[], config: GAConfig) {
+export function runGA(candidates: PreGACandidate[], lecturerStructuralMap: Map<number, boolean>, config: GAConfig) {
     let population = generateInitialPopulation(candidates, config.populationSize);
 
     const history: number[] = [];
