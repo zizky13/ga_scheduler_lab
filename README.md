@@ -12,11 +12,13 @@ A **Genetic Algorithm (GA)-based academic course scheduler** built with TypeScri
 - [Database](#database)
 - [Pre-GA Pipeline](#pre-ga-pipeline)
 - [Genetic Algorithm Engine](#genetic-algorithm-engine)
+- [Conflict-Aware Repair](#conflict-aware-repair)
 - [Crossover Operators](#crossover-operators)
 - [Tests](#tests)
 - [Getting Started](#getting-started)
 - [Scripts](#scripts)
 - [Configuration](#configuration)
+- [Changelog](#changelog)
 
 ---
 
@@ -40,15 +42,16 @@ Pre-GA Validator  ──►  6 constraint checks  ──►  PreGACandidate[]
       │
       ▼
 GA Engine
-  ├── generateInitialPopulation
+  ├── generateInitialPopulation  ──►  repairChromosome (initial repair)
   ├── evaluateFitness (hard + soft)
   ├── tournamentSelection
-  ├── crossover (singlePoint | uniform)
+  ├── crossover (singlePoint | uniform | PMX)
   ├── mutateChromosome
+  ├── repairChromosome (post-mutation repair)  ◄── NEW
   └── elitism
       │
       ▼
-  fitness history[]  (per-generation best fitness)
+  fitness history[]  (per-generation best & avg fitness)
 ```
 
 ---
@@ -72,12 +75,14 @@ ga_scheduler_lab/
 │   │   ├── fitness.ts         # Fitness evaluation (hard + soft)
 │   │   ├── selection.ts       # Tournament selection
 │   │   ├── mutation.ts        # Chromosome mutation
+│   │   ├── repair.ts          # Conflict-aware repair (NEW)
 │   │   ├── runGA.ts           # Main GA loop
 │   │   ├── experiment.ts      # Single-generation experiment helper
 │   │   └── stressTest.ts      # Synthetic candidate generator for load testing
 │   ├── crossovers/
 │   │   ├── singlePoint.ts     # Single-point crossover operator
-│   │   └── uniform.ts         # Uniform crossover operator
+│   │   ├── uniform.ts         # Uniform crossover operator
+│   │   └── partiallyMapped.ts # PMX crossover operator
 │   ├── pre-ga/
 │   │   ├── candidate.ts       # PreGACandidate & PreGAOutput interfaces
 │   │   ├── result.ts          # PreGAResult & PreGAStatus types
@@ -90,16 +95,18 @@ ga_scheduler_lab/
 │   │       ├── lecturer.ts    # Lecturer availability check
 │   │       └── policy.ts      # Academic policy check
 │   ├── tests/
-│   │   └── pre-ga/
-│   │       ├── setup.ts            # Global test setup
-│   │       ├── integrity.test.ts   # Tests for integrity check
-│   │       ├── room.test.ts        # Tests for room capacity check
-│   │       ├── temporal.test.ts    # Tests for temporal sufficiency
-│   │       ├── facility.test.ts    # Tests for facility compatibility
-│   │       ├── lecturer.test.ts    # Tests for lecturer availability
-│   │       ├── academic.test.ts    # Tests for academic policy
-│   │       └── pre_ga/
-│   │           └── validator.test.ts  # Integration tests for full validator
+│   │   ├── pre-ga/
+│   │   │   ├── setup.ts            # Global test setup
+│   │   │   ├── integrity.test.ts   # Tests for integrity check
+│   │   │   ├── room.test.ts        # Tests for room capacity check
+│   │   │   ├── temporal.test.ts    # Tests for temporal sufficiency
+│   │   │   ├── facility.test.ts    # Tests for facility compatibility
+│   │   │   ├── lecturer.test.ts    # Tests for lecturer availability
+│   │   │   ├── academic.test.ts    # Tests for academic policy
+│   │   │   └── pre_ga/
+│   │   │       └── validator.test.ts  # Integration tests for full validator
+│   │   └── ga/
+│   │       └── repair.test.ts      # Unit tests for conflict-aware repair (NEW)
 │   └── generated/
 │       └── prisma/            # Auto-generated Prisma Client (do not edit)
 ├── prisma.config.ts           # Prisma 7 configuration
@@ -418,6 +425,63 @@ A function type that describes the interface any crossover operator must satisfy
 
 ---
 
+### `src/ga/repair.ts`
+
+#### `function repairChromosome(chromosome, candidates): Chromosome`
+
+Applies **conflict-aware repair** to a chromosome immediately after it is produced by crossover and mutation. The goal is to resolve as many hard constraint violations (room-time and lecturer-time collisions) as possible before the chromosome enters the fitness evaluation step, accelerating convergence to zero hard violations.
+
+The algorithm runs in four stages:
+
+**Stage 1 — Build conflict index (single pass, O(n·s))**
+
+Iterates over all genes in the chromosome and builds two usage maps:
+
+- `roomTimeUsage: Map<"roomId-timeSlotId", Set<geneIndex>>` — which genes occupy each room×slot pair
+- `lecturerTimeUsage: Map<"lecturerId-timeSlotId", Set<geneIndex>>` — which genes occupy each lecturer×slot pair
+
+Any set with more than one element indicates a hard conflict.
+
+**Stage 2 — Score each gene's conflict severity**
+
+For each gene, counts its total collision count across all assigned slots, in both maps. Only genes with `score > 0` are added to the repair queue.
+
+**Stage 3 — Sort genes by conflict score (descending)**
+
+Genes with the highest conflict counts are repaired first. This greedy prioritisation ensures that freeing the most-contested slots early creates the most room for subsequent genes to find conflict-free alternatives.
+
+**Stage 4 — Repair loop**
+
+For each conflicted gene:
+
+1. Re-check its score against the *current* conflict index (earlier repairs may have already resolved it).
+2. For each assigned slot that is still conflicting, call `findBestSlot()` to find a replacement from `possibleTimeSlotIds` that minimises remaining collisions.
+3. Update the conflict index immediately after each slot replacement so subsequent genes see an accurate picture.
+
+| Edge case | Strategy |
+|---|---|
+| No alternative slot available | Keep the slot with the fewest remaining conflicts (least-bad strategy); chromosome structure is preserved |
+| Gene already resolved by a prior repair | Skipped (score re-check prevents unnecessary work) |
+| Gene has unknown `offeringId` | Silently skipped; gene is left unchanged |
+| Multi-session gene — no duplicate slots | When searching for alternatives, already-assigned slots for other sessions of the same gene are excluded |
+| Empty chromosome or empty candidates | Returns the input unchanged without error |
+
+Returns a **new chromosome** array; the original is never mutated.
+
+#### Integration point in `runGA.ts`
+
+```ts
+// 1. Applied to the entire initial population:
+let population = generateInitialPopulation(candidates, config.populationSize)
+    .map(ch => repairChromosome(ch, candidates));
+
+// 2. Applied to every offspring after crossover + mutation:
+const repaired1 = repairChromosome(mutated1, candidates);
+const repaired2 = repairChromosome(mutated2, candidates);
+```
+
+---
+
 ### `src/ga/runGA.ts`
 
 #### `interface GAConfig`
@@ -527,6 +591,21 @@ Tests `checkAcademicPolicy`: verifies that non-parallel classes without a room a
 ### `src/tests/pre-ga/pre_ga/validator.test.ts`
 Integration tests for the full `runPreGA()` pipeline against the test database.
 
+### `src/tests/ga/repair.test.ts`
+
+Unit tests for `repairChromosome`, organised into seven suites:
+
+| Suite | Scenario |
+|---|---|
+| Room-time conflict | Two genes sharing the same room×slot → repaired to 0 violations |
+| Room-time conflict (3 genes) | Three genes in the same room×slot → all spread across distinct slots |
+| Lecturer-time conflict | Same lecturer in two different rooms at same slot → repaired |
+| Multi-session genes | Partial conflict on a 2-session gene → resolved; no duplicate slots within a gene |
+| Conflict-free no-op | Already-valid chromosome returns the same assignments unchanged |
+| Edge — no alternative slot | Unresolvable conflict (only one possible slot) → no throw, structure intact |
+| Edge — unknown offeringId | Orphan gene silently skipped; rest of chromosome repaired normally |
+| Edge — empty inputs | Empty chromosome and empty candidates array → returned unchanged |
+
 ---
 
 ## Getting Started
@@ -584,3 +663,37 @@ npm run dev
 | Variable | Description |
 |---|---|
 | `DATABASE_URL` | SQLite file path, e.g. `file:./dev.db` |
+
+---
+
+## Changelog
+
+### 2026-03-17 — Conflict-Aware Repair
+
+**Added `src/ga/repair.ts`**
+
+New module implementing greedy conflict-aware repair, applied to every chromosome produced by the GA loop to eliminate hard constraint violations (room-time and lecturer-time collisions) as quickly as possible after crossover and mutation.
+
+Key changes:
+- `buildConflictIndex()` — single O(n·s) pass that builds room-time and lecturer-time usage maps keyed by composite strings (`"roomId-timeSlotId"`, `"lecturerId-timeSlotId"`).
+- `scoreGeneConflicts()` — scores each gene by how many collisions it is involved in.
+- `findBestSlot()` — for a conflicting slot, searches `possibleTimeSlotIds` for the alternative with the fewest remaining conflicts; returns the current slot unchanged when no better option exists (edge-case least-bad strategy).
+- `removeSlotFromIndex()` / `addSlotToIndex()` — incremental index updates applied after each slot replacement so subsequent repairs see accurate data.
+- `repairChromosome()` — public API combining all four stages; always returns a new chromosome without mutating the original.
+
+**Modified `src/ga/runGA.ts`**
+
+- `repairChromosome` applied to every chromosome in the **initial population** after `generateInitialPopulation()`.
+- `repairChromosome` applied to every **offspring** immediately after `mutateChromosome()`, before the offspring is pushed into the next generation's population.
+
+**Added `src/tests/ga/repair.test.ts`**
+
+Seven Vitest test suites covering: room-time conflict resolution, lecturer-time conflict resolution, three-gene pile-up, multi-session genes (no duplicates within a gene), conflict-free no-op, unresolvable conflict edge case, unknown `offeringId` edge case, and empty inputs.
+
+**Updated `README.md`**
+
+- Table of Contents: added *Conflict-Aware Repair* and *Changelog* entries.
+- Architecture diagram: shows `repairChromosome` at both the initial population step and the post-mutation step.
+- Project Structure: added `repair.ts` and `src/tests/ga/repair.test.ts` entries.
+- New **Conflict-Aware Repair** section documenting the four-stage algorithm and all edge cases.
+- New **Tests** subsection for `repair.test.ts` with a table of all test suites.

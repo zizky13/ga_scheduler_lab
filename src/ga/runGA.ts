@@ -2,6 +2,8 @@ import { generateInitialPopulation } from "./population.js";
 import { tournamentSelection } from "./selection.js";
 import { evaluateFitness } from "./fitness.js";
 import { mutateChromosome } from "./mutation.js";
+// Import the conflict-aware repair function that resolves hard violations post-crossover
+import { repairChromosome } from "./repair.js";
 import type { CrossoverOperator } from "./types.js";
 import type { PreGACandidate } from "../pre-ga/candidate.js";
 import type { Chromosome } from "./chromosome.js";
@@ -35,7 +37,11 @@ export function runGA(
     lecturerStructuralMap: Map<number, boolean>,
     config: GAConfig
 ): GAResult {
-    let population = generateInitialPopulation(candidates, config.populationSize);
+    // Generate the initial population and immediately repair any conflicts present
+    // in randomly created chromosomes before evolution begins
+    let population = generateInitialPopulation(candidates, config.populationSize).map(
+        ch => repairChromosome(ch, candidates)
+    );
 
     const history: number[] = [];
     const avgHistory: number[] = [];
@@ -90,10 +96,16 @@ export function runGA(
             const mutated1 = mutateChromosome(child1, candidates, config.mutationRate);
             const mutated2 = mutateChromosome(child2, candidates, config.mutationRate);
 
-            newPopulation.push(mutated1, mutated2);
+            // Apply conflict-aware repair to each offspring: resolves room-time and
+            // lecturer-time collisions greedily before the offspring enter the next
+            // generation's fitness evaluation, accelerating convergence on hard=0
+            const repaired1 = repairChromosome(mutated1, candidates);
+            const repaired2 = repairChromosome(mutated2, candidates);
+
+            newPopulation.push(repaired1, repaired2);
 
             if (newPopulation.length < config.populationSize) {
-                newPopulation.push(mutated2);
+                newPopulation.push(repaired2);
             }
         }
 
