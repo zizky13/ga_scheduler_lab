@@ -4,6 +4,12 @@ import { partiallyMappedCrossover } from "./crossovers/partiallyMapped.js";
 import { runGA } from "./ga/runGA.js";
 import { runPreGA } from "./pre-ga/validator.js";
 import { prisma } from "./db/client.js";
+import { generateReport } from "./report/generateReport.js";
+import { execSync } from "child_process";
+import path from "path";
+import { fileURLToPath } from "url";
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 async function main() {
   // Run pre-GA checks and get feasible candidates from the database
@@ -25,31 +31,50 @@ async function main() {
   );
 
   const config = {
-    populationSize: 50,
+    populationSize: 200,
     generations: 70,
     tournamentSize: 3,
-    mutationRate: 0.35,
+    mutationRate: 0.30,
     elitisimCount: 2,
   };
 
-  const singleHistory = runGA(candidates, lecturerStructuralMap, {
+  console.log("\n=== Single Point Crossover ===");
+  const singleResult = runGA(candidates, lecturerStructuralMap, {
     ...config,
     crossover: singlePointCrossover,
   });
 
-  const uniformHistory = runGA(candidates, lecturerStructuralMap, {
+  console.log("\n=== Uniform Crossover ===");
+  const uniformResult = runGA(candidates, lecturerStructuralMap, {
     ...config,
     crossover: uniformCrossover,
   });
 
-  const pmxHistory = runGA(candidates, lecturerStructuralMap, {
+  console.log("\n=== PMX Crossover ===");
+  const pmxResult = runGA(candidates, lecturerStructuralMap, {
     ...config,
     crossover: partiallyMappedCrossover,
   });
 
-  console.log("Single Point Crossover History:", singleHistory);
-  console.log("Uniform Crossover History:", uniformHistory);
-  console.log("PMX Crossover History:", pmxHistory);
+  // Generate HTML report
+  const reportPath = path.resolve(__dirname, "../../report.html");
+  generateReport(
+    [
+      { label: "Single Point", result: singleResult },
+      { label: "Uniform", result: uniformResult },
+      { label: "PMX", result: pmxResult },
+    ],
+    candidates,
+    config,
+    reportPath
+  );
+
+  // Auto-open in default browser (macOS)
+  try {
+    execSync(`open "${reportPath}"`);
+  } catch {
+    console.log(`Open manually: ${reportPath}`);
+  }
 
   await prisma.$disconnect();
 }
