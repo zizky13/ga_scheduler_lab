@@ -19,14 +19,23 @@ export function evaluateFitness(
       lecturerStructuralMap
     );
 
-  const alpha = 0.2;
 
-  const fitness =
-    1 / (
-      1 +
-      hard.hardViolations +
-      alpha * structuralPenalty
-    );
+  let fitness: number;
+  // Lexicographic fitness
+  if (hard.hardViolations > 0) {
+    fitness = 1 / (1 + hard.hardViolations);
+  } else {
+    fitness = 2 + (1 / (1 + structuralPenalty));
+  }
+
+  // fitness lama, pakai alpha
+  // const alpha = 0.2;
+  // const fitness =
+  //   1 / (
+  //     1 +
+  //     hard.hardViolations +
+  //     alpha * structuralPenalty
+  //   );
 
   return {
     fitness,
@@ -87,48 +96,48 @@ export function calculateStructuralPenalty(
 }
 
 export function evaluateHardFitness(chromosome: Chromosome, candidates: PreGACandidate[]): FitnessResult {
-    let hardViolations = 0;
+  let hardViolations = 0;
 
-    const candidateMap = new Map(candidates.map(c => [c.offeringId, c]));
+  const candidateMap = new Map(candidates.map(c => [c.offeringId, c]));
 
-    const roomTimeMap = new Map<string, number>();
-    const lecturerTimeMap = new Map<string, number>();
+  const roomTimeMap = new Map<string, number>();
+  const lecturerTimeMap = new Map<string, number>();
 
-    for (const gene of chromosome) {
-        const candidate = candidateMap.get(gene.offeringId);
-        if (!candidate) continue;
+  for (const gene of chromosome) {
+    const candidate = candidateMap.get(gene.offeringId);
+    if (!candidate) continue;
 
-        const { roomId, lecturerIds } = candidate;
+    const { roomId, lecturerIds } = candidate;
 
-        for (const timeSlotId of gene.assignedTimeSlotIds) {
+    for (const timeSlotId of gene.assignedTimeSlotIds) {
 
-            const roomKey = `${roomId}-${timeSlotId}`;
-            roomTimeMap.set(roomKey, (roomTimeMap.get(roomKey) || 0) + 1);
+      const roomKey = `${roomId}-${timeSlotId}`;
+      roomTimeMap.set(roomKey, (roomTimeMap.get(roomKey) || 0) + 1);
 
-            for (const lecturerId of lecturerIds){
-                const lecturerKey = `${lecturerId}-${timeSlotId}`;
-                lecturerTimeMap.set(lecturerKey, (lecturerTimeMap.get(lecturerKey) || 0) + 1);
-            }
-        }
+      for (const lecturerId of lecturerIds) {
+        const lecturerKey = `${lecturerId}-${timeSlotId}`;
+        lecturerTimeMap.set(lecturerKey, (lecturerTimeMap.get(lecturerKey) || 0) + 1);
+      }
     }
+  }
 
-    for (const count of roomTimeMap.values()) {
-        if (count > 1) hardViolations += (count - 1);
-    }
+  for (const count of roomTimeMap.values()) {
+    if (count > 1) hardViolations += (count - 1);
+  }
 
-    for (const count of lecturerTimeMap.values()) {
-        if (count > 1) hardViolations += (count - 1);
-    }
+  for (const count of lecturerTimeMap.values()) {
+    if (count > 1) hardViolations += (count - 1);
+  }
 
-    const fitness = 1 / (1 + hardViolations);
+  const fitness = 1 / (1 + hardViolations);
 
-    return { fitness, hardViolations };
+  return { fitness, hardViolations };
 }
 
 
 export interface FitnessResult {
-    fitness: number;
-    hardViolations: number;
+  fitness: number;
+  hardViolations: number;
 }
 
 export interface FullFitnessResult extends FitnessResult {
