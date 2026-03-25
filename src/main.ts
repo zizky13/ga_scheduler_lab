@@ -3,6 +3,7 @@ import { uniformCrossover } from "./crossovers/uniform.js";
 import { partiallyMappedCrossover } from "./crossovers/partiallyMapped.js";
 import { runGA } from "./ga/runGA.js";
 import { runPreGA } from "./pre-ga/validator.js";
+import { checkDiversity } from "./ga/diversity.js";
 import { prisma } from "./db/client.js";
 import { generateReport } from "./report/generateReport.js";
 import { execSync } from "child_process";
@@ -29,6 +30,25 @@ async function main() {
   const lecturerStructuralMap = new Map<number, boolean>(
     allLecturers.map(l => [l.id, l.isStructural])
   );
+
+  // --- Diversity check ---
+  // Analyses the candidate pool before the GA starts and logs a human-readable
+  // report in the same style as the Pre-GA output. The check computes:
+  //   • unique slot count       — breadth of the search space
+  //   • average pool size       — how many slots each candidate can draw from
+  //   • overlap density         — fraction of slot-pairs shared across candidates
+  //     (high overlap → many conflicts → harder optimisation problem)
+  //   • diversity rating        — LOW / MEDIUM / HIGH based on heuristic thresholds
+  // A LOW rating warns that the GA may struggle to reduce hard violations.
+  const diversity = checkDiversity(candidates);
+  console.log("\n=== Diversity Check ===");
+  console.log(`Unique time slots in pool : ${diversity.uniqueSlotCount}`);
+  console.log(`Avg possible slots/candidate: ${diversity.avgPoolSize.toFixed(2)}`);
+  console.log(`Slot overlap density      : ${(diversity.overlapDensity * 100).toFixed(1)}%`);
+  console.log(`Diversity rating          : ${diversity.rating}`);
+  if (diversity.rating === "LOW") {
+    console.warn("⚠️  Low diversity detected — the GA may converge slowly or to a sub-optimal solution.");
+  }
 
   const config = {
     populationSize: 200,
