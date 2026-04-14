@@ -1,0 +1,143 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap');
+@import "tailwindcss";
+
+@theme {
+  --font-sans: 'Inter', ui-sans-serif, system-ui, sans-serif;
+  --font-mono: 'JetBrains Mono', ui-monospace, monospace;
+
+  /* Brand palette */
+  --color-primary-50:  #f0f4ff;
+  --color-primary-100: #dde8ff;
+  --color-primary-200: #c3d4fe;
+  --color-primary-300: #9ab5fd;
+  --color-primary-400: #6b8ffb;
+  --color-primary-500: #4a6cf7;
+  --color-primary-600: #3350eb;
+  --color-primary-700: #2a3ed8;
+  --color-primary-800: #2534af;
+  --color-primary-900: #243189;
+
+  /* Surface neutrals */
+  --color-surface-950: #0a0d14;
+  --color-surface-900: #0f1320;
+  --color-surface-800: #161c2e;
+  --color-surface-700: #1e2740;
+  --color-surface-600: #273052;
+  --color-surface-500: #3b4675;
+
+  /* Semantic */
+  --color-success: #22c55e;
+  --color-warning: #f59e0b;
+  --color-danger:  #ef4444;
+  --color-info:    #38bdf8;
+}
+
+:root {
+  color-scheme: dark;
+}
+
+*, *::before, *::after {
+  box-sizing: border-box;
+}
+
+html {
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+body {
+  margin: 0;
+  background: var(--color-surface-950);
+  color: #e2e8f0;
+  min-height: 100dvh;
+  overflow-x: hidden;
+}
+
+/* Scrollbars */
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.12); border-radius: 9999px; }
+::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.22); }
+
+/* Glass morphism utility */
+.glass {
+  background: rgba(22, 28, 46, 0.75);
+  backdrop-filter: blur(16px) saturate(180%);
+  -webkit-backdrop-filter: blur(16px) saturate(180%);
+  border: 1px solid rgba(255,255,255,0.07);
+}
+
+.glass-light {
+  background: rgba(30, 39, 64, 0.65);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(255,255,255,0.06);
+}
+
+/* Gradient text */
+.gradient-text {
+  background: linear-gradient(135deg, #6b8ffb 0%, #a78bfa 50%, #38bdf8 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+/* Glow effects */
+.glow-primary {
+  box-shadow: 0 0 20px rgba(74, 108, 247, 0.35), 0 0 40px rgba(74, 108, 247, 0.15);
+}
+
+/* Schedule cell states */
+.cell-ok       { background: rgba(34, 197, 94,  0.12); border-color: rgba(34, 197, 94,  0.3); }
+.cell-soft     { background: rgba(245, 158, 11, 0.12); border-color: rgba(245, 158, 11, 0.3); }
+.cell-hard     { background: rgba(239, 68, 68,  0.12); border-color: rgba(239, 68, 68,  0.3); }
+.cell-selected { ring: 2px solid #4a6cf7; }
+
+.cell-ok:hover   { background: rgba(34, 197, 94,  0.2); }
+.cell-soft:hover { background: rgba(245, 158, 11, 0.2); }
+.cell-hard:hover { background: rgba(239, 68, 68,  0.2); }
+
+/* Animated gradient bg */
+@keyframes gradientShift {
+  0%   { background-position: 0% 50%; }
+  50%  { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}
+
+.animated-gradient {
+  background: linear-gradient(-45deg, #0a0d14, #0f1320, #161c2e, #1e2740, #0a0d14);
+  background-size: 400% 400%;
+  animation: gradientShift 15s ease infinite;
+}
+
+/* Floating orbs */
+.orb {
+  position: fixed;
+  border-radius: 50%;
+  filter: blur(80px);
+  pointer-events: none;
+  z-index: 0;
+  opacity: 0.25;
+}
+
+/* Pulse ring */
+@keyframes pulseRing {
+  0%   { box-shadow: 0 0 0 0 rgba(74,108,247,0.4); }
+  70%  { box-shadow: 0 0 0 10px rgba(74,108,247,0); }
+  100% { box-shadow: 0 0 0 0 rgba(74,108,247,0); }
+}
+
+.pulse-ring { animation: pulseRing 2s cubic-bezier(0.215, 0.61, 0.355, 1) infinite; }
+
+/* Shimmer for loading */
+@keyframes shimmer {
+  0%   { background-position: -1000px 0; }
+  100% { background-position: 1000px 0; }
+}
+
+.shimmer {
+  animation: shimmer 2s infinite;
+  background: linear-gradient(90deg, rgba(255,255,255,0.03) 25%, rgba(255,255,255,0.08) 50%, rgba(255,255,255,0.03) 75%);
+  background-size: 1000px 100%;
+}
