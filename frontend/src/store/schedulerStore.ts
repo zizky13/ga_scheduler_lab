@@ -64,6 +64,13 @@ function deriveConflicts(entries: ScheduleEntry[]): Conflict[] {
 
 // ─── Store ────────────────────────────────────────────────────────────────────
 
+export interface EntryPatch {
+  timeSlots?: ScheduleEntry['timeSlots']
+  timeSlotIds?: number[]
+  roomId?: number
+  roomName?: string
+}
+
 interface SchedulerState {
   // Run state
   isRunning: boolean
@@ -76,12 +83,13 @@ interface SchedulerState {
   usedConfig: GAConfig | null
 
   // Derived
-  entries: ScheduleEntry[]   // with locked flag preserved
+  entries: ScheduleEntry[]
   conflicts: Conflict[]
 
   // UI selection
   selectedConflictId: string | null
   highlightedOfferingIds: Set<number>
+  editingOfferingId: number | null
 
   // Actions
   setRunning: (v: boolean) => void
@@ -90,6 +98,8 @@ interface SchedulerState {
   toggleLock: (offeringId: number) => void
   selectConflict: (id: string | null) => void
   clearResults: () => void
+  updateEntry: (offeringId: number, patch: EntryPatch) => void
+  setEditingOfferingId: (id: number | null) => void
 }
 
 export const useSchedulerStore = create<SchedulerState>((set, get) => ({
@@ -103,6 +113,7 @@ export const useSchedulerStore = create<SchedulerState>((set, get) => ({
   conflicts: [],
   selectedConflictId: null,
   highlightedOfferingIds: new Set(),
+  editingOfferingId: null,
 
   setRunning: (v) => set({ isRunning: v, runError: null }),
   setError: (e) => set({ runError: e, isRunning: false }),
@@ -156,6 +167,29 @@ export const useSchedulerStore = create<SchedulerState>((set, get) => ({
     conflicts: [],
     selectedConflictId: null,
     highlightedOfferingIds: new Set(),
+    editingOfferingId: null,
     runError: null,
   }),
+
+  updateEntry: (offeringId, patch) => {
+    const updated = get().entries.map(e => {
+      if (e.offeringId !== offeringId) return e
+      return {
+        ...e,
+        ...(patch.timeSlots !== undefined && { timeSlots: patch.timeSlots }),
+        ...(patch.timeSlotIds !== undefined && { timeSlotIds: patch.timeSlotIds }),
+        ...(patch.roomId !== undefined && { roomId: patch.roomId }),
+        ...(patch.roomName !== undefined && { roomName: patch.roomName }),
+      }
+    })
+    const conflicts = deriveConflicts(updated)
+    // Update highlighted set if a conflict is currently selected
+    const sel = get().selectedConflictId
+    const newHighlighted = sel
+      ? new Set(conflicts.find(c => c.id === sel)?.relatedOfferingIds ?? [])
+      : new Set<number>()
+    set({ entries: updated, conflicts, highlightedOfferingIds: newHighlighted })
+  },
+
+  setEditingOfferingId: (id) => set({ editingOfferingId: id }),
 }))

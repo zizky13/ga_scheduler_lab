@@ -10,6 +10,7 @@ import { EmptyState } from '@/components/scheduler/EmptyState'
 import { GAConfigModal } from '@/components/scheduler/GAConfigModal'
 import { RunningOverlay } from '@/components/ui/RunningOverlay'
 import { ErrorToast } from '@/components/ui/ErrorToast'
+import { EditEntryModal } from '@/components/scheduler/EditEntryModal'
 import { useSchedulerStore } from '@/store/schedulerStore'
 import { schedulerApi } from '@/lib/api'
 import type { GAConfig } from '@/types'
@@ -149,6 +150,7 @@ export function SchedulerPage() {
 
       <RunningOverlay />
       <ErrorToast />
+      <EditEntryModal />
 
       <GAConfigModal
         open={configOpen}
