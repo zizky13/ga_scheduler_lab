@@ -18,6 +18,13 @@ const api = axios.create({
   headers: { 'Content-Type': 'application/json' },
 })
 
+// ─── JWT request interceptor ─────────────────────────────────────────────────
+api.interceptors.request.use(config => {
+  const token = localStorage.getItem('accessToken')
+  if (token) config.headers.Authorization = `Bearer ${token}`
+  return config
+})
+
 // ─── Generic helpers ──────────────────────────────────────────────────────────
 
 async function get<T>(path: string, params?: Record<string, string>): Promise<T> {
@@ -131,4 +138,21 @@ export const schedulerApi = {
   run: (config?: GAConfig) => post<SchedulerRunResponse>('/scheduler/run', config),
   compare: (config?: Omit<GAConfig, 'crossover'>) =>
     post<SchedulerCompareResponse>('/scheduler/compare', config),
+}
+
+// ─── Auth ─────────────────────────────────────────────────────────────────────
+
+export interface LoginResponse {
+  accessToken: string
+  refreshToken: string
+  expiresIn: number
+  user: { id: number; username: string; email: string; role: string }
+}
+
+export const authApi = {
+  login: (username: string, password: string) =>
+    post<LoginResponse>('/auth/login', { username, password }),
+  me: () => get<LoginResponse['user']>('/auth/me'),
+  logout: (refreshToken: string) =>
+    api.post('/auth/logout', { refreshToken }),
 }

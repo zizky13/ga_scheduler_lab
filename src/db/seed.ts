@@ -1,4 +1,5 @@
 import process from "process";
+import bcrypt from "bcryptjs";
 import { prisma } from "./client.js";
 
 async function main() {
@@ -17,6 +18,25 @@ async function main() {
   await prisma.lecturer.deleteMany();
   await prisma.programStudy.deleteMany();
   await prisma.timeSlot.deleteMany();
+
+  /**
+   * ADMIN USER (idempotent — upsert by username)
+   */
+  const adminPassword = process.env.SEED_ADMIN_PASSWORD ?? "Admin@1234";
+  const adminHash = await bcrypt.hash(adminPassword, 12);
+
+  await prisma.user.upsert({
+    where: { username: "admin" },
+    update: {},
+    create: {
+      username: "admin",
+      email: "admin@scheduler.ac.id",
+      passwordHash: adminHash,
+      role: "ADMIN",
+    },
+  });
+  console.log(`👤 Admin user seeded (username: admin, password: ${adminPassword})`);
+
 
   /**
    * PROGRAM STUDY

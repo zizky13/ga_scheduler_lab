@@ -1,12 +1,14 @@
 import { useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { motion } from 'motion/react'
 import {
-  Zap, RefreshCw, Trash2, Download, Settings2, Activity, Brain
+  Zap, RefreshCw, Trash2, Download, Settings2, Activity, Brain, LogOut
 } from 'lucide-react'
 import { Button } from '@/components/ui/Button'
 import { Badge } from '@/components/ui/Badge'
 import { GAConfigModal } from '@/components/scheduler/GAConfigModal'
 import { useSchedulerStore } from '@/store/schedulerStore'
+import { useAuthStore } from '@/store/authStore'
 import { schedulerApi } from '@/lib/api'
 import type { GAConfig } from '@/types'
 
@@ -17,7 +19,9 @@ interface HeaderProps {
 
 export function Header({ semester = 'Ganjil', academicYear = '2024/2025' }: HeaderProps) {
   const [configOpen, setConfigOpen] = useState(false)
+  const navigate = useNavigate()
   const { isRunning, setRunning, setResults, setError, clearResults, gaResult, conflicts } = useSchedulerStore()
+  const { user, logout } = useAuthStore()
 
   const hardCount = conflicts.filter(c => c.severity === 'HARD').length
 
@@ -141,6 +145,25 @@ export function Header({ semester = 'Ganjil', academicYear = '2024/2025' }: Head
           >
             <Settings2 size={15} />
           </Button>
+
+          {/* User chip + logout */}
+          {user && (
+            <div className="flex items-center gap-2 pl-2 border-l border-white/8">
+              <div className="hidden sm:flex flex-col items-end">
+                <span className="text-[11px] font-medium text-slate-300 leading-none">{user.username}</span>
+                <span className="text-[9px] text-slate-500 uppercase tracking-wide">{user.role.replace(/_/g, ' ')}</span>
+              </div>
+              <Button
+                id="btn-logout"
+                variant="ghost"
+                size="icon"
+                title="Sign out"
+                onClick={async () => { await logout(); navigate('/login') }}
+              >
+                <LogOut size={15} />
+              </Button>
+            </div>
+          )}
         </nav>
       </motion.header>
 

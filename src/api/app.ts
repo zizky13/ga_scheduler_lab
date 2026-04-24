@@ -5,8 +5,12 @@ import rateLimit from "express-rate-limit";
 import "dotenv/config";
 
 import { errorHandler } from "./middleware/errorHandler.js";
+import { authenticate } from "./middleware/authenticate.js";
+import { authorize } from "./middleware/authorize.js";
 
 // Routes
+import authRoutes from "./routes/auth.js";
+import userRoutes from "./routes/users.js";
 import lecturerRoutes from "./routes/lecturers.js";
 import programRoutes from "./routes/programs.js";
 import courseRoutes from "./routes/courses.js";
@@ -67,14 +71,23 @@ app.get("/api/health", (_req, res) => {
 });
 
 // ── API Routes ────────────────────────────────────────────────────────────────
-app.use("/api/lecturers", lecturerRoutes);
-app.use("/api/programs", programRoutes);
-app.use("/api/courses", courseRoutes);
-app.use("/api/rooms", roomRoutes);
-app.use("/api/facilities", facilityRoutes);
-app.use("/api/timeslots", timeSlotRoutes);
-app.use("/api/offerings", offeringRoutes);
-app.use("/api/scheduler", schedulerRoutes);
+
+// Public: authentication (login, refresh, logout, me)
+app.use("/api/auth", authRoutes);
+
+// Admin-only: user management
+app.use("/api/users", userRoutes);
+
+// Domain routes — protected by role
+// ADMIN → full access; HEAD_OF_PROGRAM_STUDY → courses + lecturers only
+app.use("/api/lecturers", authenticate, authorize("ADMIN", "HEAD_OF_PROGRAM_STUDY"), lecturerRoutes);
+app.use("/api/courses",   authenticate, authorize("ADMIN", "HEAD_OF_PROGRAM_STUDY"), courseRoutes);
+app.use("/api/programs",  authenticate, authorize("ADMIN"), programRoutes);
+app.use("/api/rooms",     authenticate, authorize("ADMIN"), roomRoutes);
+app.use("/api/facilities",authenticate, authorize("ADMIN"), facilityRoutes);
+app.use("/api/timeslots", authenticate, authorize("ADMIN"), timeSlotRoutes);
+app.use("/api/offerings", authenticate, authorize("ADMIN"), offeringRoutes);
+app.use("/api/scheduler", authenticate, authorize("ADMIN"), schedulerRoutes);
 
 // ── 404 Handler ───────────────────────────────────────────────────────────────
 app.use((_req, res) => {

@@ -113,3 +113,38 @@ model CourseOfferingLecturer {
 
   @@id([offeringId, lecturerId])
 }
+
+// ── Authentication & Authorization ────────────────────────────────────────────
+
+enum UserRole {
+  ADMIN
+  HEAD_OF_PROGRAM_STUDY
+}
+
+model User {
+  id           Int      @id @default(autoincrement())
+  username     String   @unique
+  email        String   @unique
+  passwordHash String   // bcrypt hash — NEVER store plaintext
+  role         UserRole @default(HEAD_OF_PROGRAM_STUDY)
+  isActive     Boolean  @default(true)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  refreshTokens RefreshToken[]
+}
+
+model RefreshToken {
+  id        Int       @id @default(autoincrement())
+  tokenHash String    @unique // SHA-256 hash of the raw token
+  userId    Int
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  expiresAt DateTime
+  revokedAt DateTime? // null = active; non-null = invalidated
+
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+  @@index([tokenHash])
+}
