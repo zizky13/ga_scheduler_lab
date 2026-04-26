@@ -91,7 +91,6 @@ router.post(
     res.status(201).json({ success: true, data: course });
   })
 );
-
 // ── PUT /api/courses/:id ──────────────────────────────────────────────────────
 router.put(
   "/:id",

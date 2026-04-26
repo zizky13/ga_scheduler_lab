@@ -1,6 +1,6 @@
 # ga_scheduler_lab
 
-A **Genetic Algorithm (GA)-based academic course scheduler** built with TypeScript. This project solves the university timetabling problem by evolving a population of candidate schedules over multiple generations, minimising hard constraint violations (room and lecturer conflicts) and soft constraint penalties (workload balance for structural lecturers).
+A **Genetic Algorithm (GA)-based academic course scheduler** built as a full-stack application with TypeScript. This project solves the university timetabling problem by evolving a population of candidate schedules over multiple generations, minimising hard constraint violations (room and lecturer conflicts) and soft constraint penalties (workload balance for structural lecturers).
 
 ---
 
@@ -10,6 +10,7 @@ A **Genetic Algorithm (GA)-based academic course scheduler** built with TypeScri
 - [Architecture](#architecture)
 - [Project Structure](#project-structure)
 - [Database](#database)
+- [REST API](#rest-api)
 - [Pre-GA Pipeline](#pre-ga-pipeline)
 - [Genetic Algorithm Engine](#genetic-algorithm-engine)
 - [Conflict-Aware Repair](#conflict-aware-repair)
@@ -24,9 +25,11 @@ A **Genetic Algorithm (GA)-based academic course scheduler** built with TypeScri
 
 ## Overview
 
-The scheduler works in two phases:
+The application features a modern React frontend powered by an Express.js REST API.
 
-1. **Pre-GA Phase** — Each course offering is validated against six constraint categories (data integrity, room capacity, temporal sufficiency, facility compatibility, lecturer availability, and academic policy). Only *feasible* offerings become candidates for the GA.
+The core scheduling logic works in two phases:
+
+1. **Pre-GA Phase** — Each course offering is validated against six constraint categories (data integrity, room capacity, temporal sufficiency, facility compatibility, lecturer availability, and academic policy). Only _feasible_ offerings become candidates for the GA.
 
 2. **GA Phase** — A population of chromosomes (candidate timetables) is evolved using selection, crossover, and mutation. Fitness is evaluated based on hard violations (conflicting room/time or lecturer/time assignments) and a soft penalty for overloaded structural lecturers.
 
@@ -35,7 +38,13 @@ The scheduler works in two phases:
 ## Architecture
 
 ```
-Database (SQLite)
+React Frontend (Vite, TailwindCSS, Zustand)
+      │
+      ▼ REST API
+Express Backend (Routes, Validation, Rate Limiting)
+      │
+      ▼
+Database (SQLite / Prisma)
       │
       ▼
 Pre-GA Validator  ──►  6 constraint checks  ──►  PreGACandidate[]
@@ -58,61 +67,35 @@ GA Engine
 
 ## Project Structure
 
-```
+```text
 ga_scheduler_lab/
-├── prisma/
-│   ├── schema.prisma          # Database schema
-│   └── migrations/            # Migration history
+├── frontend/                  # React + Vite frontend application
+│   ├── src/
+│   │   ├── components/        # React components (Liquid Glass UI)
+│   │   ├── pages/             # Route pages
+│   │   ├── store/             # Zustand state management
+│   │   └── ...
+├── prisma/                    # Database schema and migrations
 ├── src/
-│   ├── main.ts                # Entry point
-│   ├── db/
-│   │   ├── client.ts          # Prisma client singleton
-│   │   └── seed.ts            # Database seed script
-│   ├── ga/
-│   │   ├── types.ts           # Shared GA types
-│   │   ├── chromosome.ts      # Gene/Chromosome definitions & factory
-│   │   ├── population.ts      # Initial population generator
-│   │   ├── fitness.ts         # Fitness evaluation (hard + soft)
-│   │   ├── selection.ts       # Tournament selection
-│   │   ├── mutation.ts        # Chromosome mutation
-│   │   ├── repair.ts          # Conflict-aware repair (NEW)
-│   │   ├── runGA.ts           # Main GA loop
-│   │   ├── experiment.ts      # Single-generation experiment helper
-│   │   └── stressTest.ts      # Synthetic candidate generator for load testing
-│   ├── crossovers/
-│   │   ├── singlePoint.ts     # Single-point crossover operator
-│   │   ├── uniform.ts         # Uniform crossover operator
-│   │   └── partiallyMapped.ts # PMX crossover operator
-│   ├── pre-ga/
-│   │   ├── candidate.ts       # PreGACandidate & PreGAOutput interfaces
-│   │   ├── result.ts          # PreGAResult & PreGAStatus types
-│   │   ├── validator.ts       # Orchestrates all pre-GA checks
-│   │   └── checks/
-│   │       ├── integrity.ts   # Data completeness check
-│   │       ├── room.ts        # Room capacity check (UPJ rules)
-│   │       ├── temporal.ts    # Time slot sufficiency check
-│   │       ├── facility.ts    # Facility compatibility check
-│   │       ├── lecturer.ts    # Lecturer availability check
-│   │       └── policy.ts      # Academic policy check
-│   ├── tests/
-│   │   ├── pre-ga/
-│   │   │   ├── setup.ts            # Global test setup
-│   │   │   ├── integrity.test.ts   # Tests for integrity check
-│   │   │   ├── room.test.ts        # Tests for room capacity check
-│   │   │   ├── temporal.test.ts    # Tests for temporal sufficiency
-│   │   │   ├── facility.test.ts    # Tests for facility compatibility
-│   │   │   ├── lecturer.test.ts    # Tests for lecturer availability
-│   │   │   ├── academic.test.ts    # Tests for academic policy
-│   │   │   └── pre_ga/
-│   │   │       └── validator.test.ts  # Integration tests for full validator
-│   │   └── ga/
-│   │       └── repair.test.ts      # Unit tests for conflict-aware repair (NEW)
-│   └── generated/
-│       └── prisma/            # Auto-generated Prisma Client (do not edit)
-├── prisma.config.ts           # Prisma 7 configuration
-├── tsconfig.json              # TypeScript compiler configuration
-├── vitetest.config.ts         # Vitest test runner configuration
-└── package.json
+│   ├── api/                   # Express backend API
+│   │   ├── app.ts             # Express app setup (security, CORS, rate limits)
+│   │   ├── server.ts          # API server entry point
+│   │   ├── middleware/        # Error handlers and async wrappers
+│   │   ├── routes/            # REST endpoints (CRUD & Scheduler)
+│   │   └── services/          # API business logic
+│   ├── db/                    # Prisma client and seed script
+│   ├── ga/                    # Core Genetic Algorithm Engine
+│   ├── crossovers/            # GA Crossover operators
+│   ├── pre-ga/                # Constraint validation pipeline
+│   ├── report/                # HTML Report generation script
+│   ├── scripts/               # Diagnostic and test scripts
+│   ├── tests/                 # Vitest test suites
+│   ├── main.ts                # Legacy CLI entry point for GA
+│   └── generated/             # Auto-generated Prisma Client
+├── prisma.config.ts           # Prisma configuration
+├── tsconfig.json              # Backend TypeScript configuration
+├── vitetest.config.ts         # Vitest configuration
+└── package.json               # Backend dependencies
 ```
 
 ---
@@ -125,18 +108,18 @@ Defines the SQLite database schema. In Prisma 7, the `url` is configured in `pri
 
 #### Models
 
-| Model | Description |
-|---|---|
-| `Lecturer` | A teaching staff member. Has `isStructural` flag to distinguish administrative/structural lecturers. |
-| `ProgramStudy` | An academic programme (e.g. "Informatika"). |
-| `Course` | A course belonging to a programme. Has `requiresSpecialRoom` flag and optional facility requirements. |
-| `Facility` | A room feature/equipment (e.g. LAB, PROJECTOR). |
-| `Room` | A physical room with capacity, type, and a list of facilities. |
-| `RoomFacility` | Join table linking `Room` ↔ `Facility`. |
-| `CourseFacilityRequirement` | Join table linking `Course` ↔ `Facility` (what the course needs). |
-| `TimeSlot` | A schedulable time block with `day`, `startTime`, `endTime`. |
-| `CourseOffering` | A semester-specific instance of a course, linked to a room and one or more lecturers. |
-| `CourseOfferingLecturer` | Join table linking `CourseOffering` ↔ `Lecturer`. |
+| Model                       | Description                                                                                           |
+| --------------------------- | ----------------------------------------------------------------------------------------------------- |
+| `Lecturer`                  | A teaching staff member. Has `isStructural` flag to distinguish administrative/structural lecturers.  |
+| `ProgramStudy`              | An academic programme (e.g. "Informatika").                                                           |
+| `Course`                    | A course belonging to a programme. Has `requiresSpecialRoom` flag and optional facility requirements. |
+| `Facility`                  | A room feature/equipment (e.g. LAB, PROJECTOR).                                                       |
+| `Room`                      | A physical room with capacity, type, and a list of facilities.                                        |
+| `RoomFacility`              | Join table linking `Room` ↔ `Facility`.                                                               |
+| `CourseFacilityRequirement` | Join table linking `Course` ↔ `Facility` (what the course needs).                                     |
+| `TimeSlot`                  | A schedulable time block with `day`, `startTime`, `endTime`.                                          |
+| `CourseOffering`            | A semester-specific instance of a course, linked to a room and one or more lecturers.                 |
+| `CourseOfferingLecturer`    | Join table linking `CourseOffering` ↔ `Lecturer`.                                                     |
 
 ---
 
@@ -170,7 +153,7 @@ Populates the database with representative test data for development:
 - 2 lecturers (`Dr. Andi`, `Prof. Budi`)
 - 2 courses (`Algoritma dan Struktur Data`, `Etika Profesi`)
 - 3 time slots (Monday/Tuesday)
-- 3 course offerings — one *feasible*, one infeasible due to room capacity, one infeasible due to missing LAB facility
+- 3 course offerings — one _feasible_, one infeasible due to room capacity, one infeasible due to missing LAB facility
 
 Run with: `npm run db:seed`
 
@@ -186,21 +169,21 @@ Defines the data structures that flow between the pre-GA phase and the GA engine
 
 Represents a course offering that has passed all pre-GA checks and is ready to be scheduled by the GA.
 
-| Field | Type | Description |
-|---|---|---|
-| `offeringId` | `number` | The ID of the `CourseOffering` in the database. |
-| `requiredSessions` | `number` | How many time slots must be assigned to this offering. |
-| `roomId` | `number` | The ID of the assigned room. |
-| `lecturerIds` | `number[]` | IDs of all lecturers teaching this offering. |
-| `possibleTimeSlotIds` | `number[]` | All time slots that could potentially be assigned. |
+| Field                 | Type       | Description                                            |
+| --------------------- | ---------- | ------------------------------------------------------ |
+| `offeringId`          | `number`   | The ID of the `CourseOffering` in the database.        |
+| `requiredSessions`    | `number`   | How many time slots must be assigned to this offering. |
+| `roomId`              | `number`   | The ID of the assigned room.                           |
+| `lecturerIds`         | `number[]` | IDs of all lecturers teaching this offering.           |
+| `possibleTimeSlotIds` | `number[]` | All time slots that could potentially be assigned.     |
 
 #### `interface PreGAOutput`
 
 The final output of `runPreGA()`.
 
-| Field | Type | Description |
-|---|---|---|
-| `feasible` | `PreGACandidate[]` | Offerings that passed all checks, ready for the GA. |
+| Field        | Type                       | Description                                                             |
+| ------------ | -------------------------- | ----------------------------------------------------------------------- |
+| `feasible`   | `PreGACandidate[]`         | Offerings that passed all checks, ready for the GA.                     |
 | `infeasible` | `{ offeringId, reason }[]` | Offerings that failed at least one check, with a human-readable reason. |
 
 ---
@@ -210,15 +193,16 @@ The final output of `runPreGA()`.
 Lightweight types used internally by individual checks.
 
 #### `type PreGAStatus`
+
 `"FEASIBLE"` | `"INFEASIBLE"`
 
 #### `interface PreGAResult`
 
-| Field | Type | Description |
-|---|---|---|
-| `offeringId` | `number` | The offering being evaluated. |
-| `status` | `PreGAStatus` | Whether the offering passed or failed. |
-| `reason` | `string?` | Optional failure message. |
+| Field        | Type          | Description                            |
+| ------------ | ------------- | -------------------------------------- |
+| `offeringId` | `number`      | The offering being evaluated.          |
+| `status`     | `PreGAStatus` | Whether the offering passed or failed. |
+| `reason`     | `string?`     | Optional failure message.              |
 
 ---
 
@@ -228,14 +212,14 @@ Lightweight types used internally by individual checks.
 
 Orchestrates the entire pre-GA pipeline. Fetches all `CourseOffering` records from the database (with their related `Course`, `Room`, and `Lecturer` data), then runs each offering through the following six checks in order. If any check fails, the offering is placed in `infeasible` and the remaining checks are skipped for that offering.
 
-| Step | Check | Fail Code |
-|---|---|---|
-| 1 | Data Integrity | `INTEGRITY_FAIL` |
-| 2 | Room Capacity (UPJ) | `ROOM_FAIL` |
-| 3 | Temporal Sufficiency | `TEMPORAL_FAIL` |
-| 4 | Facility Compatibility | `FACILITY_FAIL` |
-| 5 | Lecturer Availability | `LECTURER_FAIL` |
-| 6 | Academic Policy | `POLICY_FAIL` |
+| Step | Check                  | Fail Code        |
+| ---- | ---------------------- | ---------------- |
+| 1    | Data Integrity         | `INTEGRITY_FAIL` |
+| 2    | Room Capacity (UPJ)    | `ROOM_FAIL`      |
+| 3    | Temporal Sufficiency   | `TEMPORAL_FAIL`  |
+| 4    | Facility Compatibility | `FACILITY_FAIL`  |
+| 5    | Lecturer Availability  | `LECTURER_FAIL`  |
+| 6    | Academic Policy        | `POLICY_FAIL`    |
 
 Offerings that pass all six checks are converted into `PreGACandidate` objects (with all available time slots set as `possibleTimeSlotIds`) and placed in `feasible`.
 
@@ -328,9 +312,9 @@ Defines the fundamental GA data structures.
 
 Represents the scheduled assignment for one course offering.
 
-| Field | Type | Description |
-|---|---|---|
-| `offeringId` | `number` | References the `PreGACandidate` this gene belongs to. |
+| Field                 | Type       | Description                                                                          |
+| --------------------- | ---------- | ------------------------------------------------------------------------------------ |
+| `offeringId`          | `number`   | References the `PreGACandidate` this gene belongs to.                                |
 | `assignedTimeSlotIds` | `number[]` | The time slots randomly assigned to this offering. Length equals `requiredSessions`. |
 
 #### `type Chromosome`
@@ -382,17 +366,17 @@ $$\text{penalty} += \max(0,\ \text{sessions} - 2) \quad \forall \text{ structura
 
 #### `interface FitnessResult`
 
-| Field | Type | Description |
-|---|---|---|
-| `fitness` | `number` | Normalised fitness score `(0, 1]`. |
+| Field            | Type     | Description                                 |
+| ---------------- | -------- | ------------------------------------------- |
+| `fitness`        | `number` | Normalised fitness score `(0, 1]`.          |
 | `hardViolations` | `number` | Total number of hard constraint violations. |
 
 #### `interface FullFitnessResult`
 
 Extends `FitnessResult` with:
 
-| Field | Type | Description |
-|---|---|---|
+| Field         | Type     | Description                                              |
+| ------------- | -------- | -------------------------------------------------------- |
 | `softPenalty` | `number` | Total soft penalty from overloaded structural lecturers. |
 
 ---
@@ -418,7 +402,7 @@ Applies **random resetting mutation**. Iterates over each gene; with probability
 #### `type CrossoverOperator`
 
 ```ts
-(parent1: Chromosome, parent2: Chromosome) => [Chromosome, Chromosome]
+(parent1: Chromosome, parent2: Chromosome) => [Chromosome, Chromosome];
 ```
 
 A function type that describes the interface any crossover operator must satisfy. Both crossover implementations (`singlePointCrossover`, `uniformCrossover`) conform to this type.
@@ -454,17 +438,17 @@ Genes with the highest conflict counts are repaired first. This greedy prioritis
 
 For each conflicted gene:
 
-1. Re-check its score against the *current* conflict index (earlier repairs may have already resolved it).
+1. Re-check its score against the _current_ conflict index (earlier repairs may have already resolved it).
 2. For each assigned slot that is still conflicting, call `findBestSlot()` to find a replacement from `possibleTimeSlotIds` that minimises remaining collisions.
 3. Update the conflict index immediately after each slot replacement so subsequent genes see an accurate picture.
 
-| Edge case | Strategy |
-|---|---|
-| No alternative slot available | Keep the slot with the fewest remaining conflicts (least-bad strategy); chromosome structure is preserved |
-| Gene already resolved by a prior repair | Skipped (score re-check prevents unnecessary work) |
-| Gene has unknown `offeringId` | Silently skipped; gene is left unchanged |
-| Multi-session gene — no duplicate slots | When searching for alternatives, already-assigned slots for other sessions of the same gene are excluded |
-| Empty chromosome or empty candidates | Returns the input unchanged without error |
+| Edge case                               | Strategy                                                                                                  |
+| --------------------------------------- | --------------------------------------------------------------------------------------------------------- |
+| No alternative slot available           | Keep the slot with the fewest remaining conflicts (least-bad strategy); chromosome structure is preserved |
+| Gene already resolved by a prior repair | Skipped (score re-check prevents unnecessary work)                                                        |
+| Gene has unknown `offeringId`           | Silently skipped; gene is left unchanged                                                                  |
+| Multi-session gene — no duplicate slots | When searching for alternatives, already-assigned slots for other sessions of the same gene are excluded  |
+| Empty chromosome or empty candidates    | Returns the input unchanged without error                                                                 |
 
 Returns a **new chromosome** array; the original is never mutated.
 
@@ -472,8 +456,10 @@ Returns a **new chromosome** array; the original is never mutated.
 
 ```ts
 // 1. Applied to the entire initial population:
-let population = generateInitialPopulation(candidates, config.populationSize)
-    .map(ch => repairChromosome(ch, candidates));
+let population = generateInitialPopulation(
+  candidates,
+  config.populationSize,
+).map((ch) => repairChromosome(ch, candidates));
 
 // 2. Applied to every offspring after crossover + mutation:
 const repaired1 = repairChromosome(mutated1, candidates);
@@ -488,14 +474,14 @@ const repaired2 = repairChromosome(mutated2, candidates);
 
 The full configuration object for a GA run.
 
-| Field | Type | Description |
-|---|---|---|
-| `populationSize` | `number` | Number of chromosomes per generation. |
-| `generations` | `number` | How many generations to evolve. |
-| `tournamentSize` | `number` | Number of contestants in each tournament selection. |
-| `mutationRate` | `number` | Probability `[0,1]` that a gene mutates. |
-| `elitisimCount` | `number` | Number of best chromosomes carried over unchanged each generation. |
-| `crossover` | `CrossoverOperator` | The crossover function to use. |
+| Field            | Type                | Description                                                        |
+| ---------------- | ------------------- | ------------------------------------------------------------------ |
+| `populationSize` | `number`            | Number of chromosomes per generation.                              |
+| `generations`    | `number`            | How many generations to evolve.                                    |
+| `tournamentSize` | `number`            | Number of contestants in each tournament selection.                |
+| `mutationRate`   | `number`            | Probability `[0,1]` that a gene mutates.                           |
+| `elitisimCount`  | `number`            | Number of best chromosomes carried over unchanged each generation. |
+| `crossover`      | `CrossoverOperator` | The crossover function to use.                                     |
 
 #### `function runGA(candidates, config): number[]`
 
@@ -571,40 +557,68 @@ child2:  [a B C d E f]
 Tests are written with **Vitest** and live in `src/tests/pre-ga/`.
 
 ### `src/tests/pre-ga/integrity.test.ts`
+
 Tests `checkDataIntegrity`: verifies it fails when no lecturers are assigned and passes when minimum valid data is present.
 
 ### `src/tests/pre-ga/room.test.ts`
+
 Tests `checkRoomCapacityUPJ`: verifies correct `requiredSessions` calculation (e.g. 60 students / 45 capacity = 2 sessions) and fails when room is `null`.
 
 ### `src/tests/pre-ga/temporal.test.ts`
+
 Tests `checkTemporalSufficiency`: verifies the offering fails when available sessions are fewer than required.
 
 ### `src/tests/pre-ga/facility.test.ts`
+
 Tests `checkFacilityCompatibility`: verifies failure when the room is missing a required facility.
 
 ### `src/tests/pre-ga/lecturer.test.ts`
+
 Tests `checkLecturerAvailability`: verifies failure for empty lecturer list and hard cap enforcement for structural lecturers.
 
 ### `src/tests/pre-ga/academic.test.ts`
+
 Tests `checkAcademicPolicy`: verifies that non-parallel classes without a room are rejected, and that missing academic year/semester fails validation.
 
 ### `src/tests/pre-ga/pre_ga/validator.test.ts`
+
 Integration tests for the full `runPreGA()` pipeline against the test database.
 
 ### `src/tests/ga/repair.test.ts`
 
 Unit tests for `repairChromosome`, organised into seven suites:
 
-| Suite | Scenario |
-|---|---|
-| Room-time conflict | Two genes sharing the same room×slot → repaired to 0 violations |
-| Room-time conflict (3 genes) | Three genes in the same room×slot → all spread across distinct slots |
-| Lecturer-time conflict | Same lecturer in two different rooms at same slot → repaired |
-| Multi-session genes | Partial conflict on a 2-session gene → resolved; no duplicate slots within a gene |
-| Conflict-free no-op | Already-valid chromosome returns the same assignments unchanged |
-| Edge — no alternative slot | Unresolvable conflict (only one possible slot) → no throw, structure intact |
-| Edge — unknown offeringId | Orphan gene silently skipped; rest of chromosome repaired normally |
-| Edge — empty inputs | Empty chromosome and empty candidates array → returned unchanged |
+| Suite                        | Scenario                                                                          |
+| ---------------------------- | --------------------------------------------------------------------------------- |
+| Room-time conflict           | Two genes sharing the same room×slot → repaired to 0 violations                   |
+| Room-time conflict (3 genes) | Three genes in the same room×slot → all spread across distinct slots              |
+| Lecturer-time conflict       | Same lecturer in two different rooms at same slot → repaired                      |
+| Multi-session genes          | Partial conflict on a 2-session gene → resolved; no duplicate slots within a gene |
+| Conflict-free no-op          | Already-valid chromosome returns the same assignments unchanged                   |
+| Edge — no alternative slot   | Unresolvable conflict (only one possible slot) → no throw, structure intact       |
+| Edge — unknown offeringId    | Orphan gene silently skipped; rest of chromosome repaired normally                |
+| Edge — empty inputs          | Empty chromosome and empty candidates array → returned unchanged                  |
+
+---
+
+## REST API
+
+The Express backend provides RESTful endpoints to manage all system entities and trigger the GA Scheduler.
+
+### Core Endpoints
+
+- `/api/lecturers` — Manage lecturers
+- `/api/programs` — Manage program studies
+- `/api/courses` — Manage courses
+- `/api/rooms` — Manage rooms
+- `/api/facilities` — Manage facilities
+- `/api/timeslots` — Manage time slots
+- `/api/offerings` — Manage course offerings
+
+### Scheduler Endpoints
+
+- `POST /api/scheduler/run` — Triggers a single GA run. Accepts optional config in the request body.
+- `POST /api/scheduler/compare` — Runs the GA with all three crossover operators and compares their results.
 
 ---
 
@@ -615,22 +629,34 @@ Unit tests for `repairChromosome`, organised into seven suites:
 - Node.js 18+
 - npm
 
-### Setup
+### Setup Backend
 
 ```bash
-# Install dependencies
+# Install backend dependencies
 npm install
 
 # Set up .env
 echo 'DATABASE_URL="file:./dev.db"' > .env
 
-# Run migrations
+# Run migrations and seed database
 npx prisma migrate dev
-
-# Seed the database
 npm run db:seed
 
-# Run the GA
+# Start the Express API server (Development mode)
+npm run api:dev
+```
+
+### Setup Frontend
+
+Open a new terminal window:
+
+```bash
+cd frontend
+
+# Install frontend dependencies
+npm install
+
+# Start the React development server
 npm run dev
 ```
 
@@ -638,35 +664,56 @@ npm run dev
 
 ## Scripts
 
-| Script | Command | Description |
-|---|---|---|
-| `npm run dev` | `tsx src/main.ts` | Run the main entry point |
-| `npm run db:seed` | `tsx src/db/seed.ts` | Seed the database with sample data |
-| `npm test` | `vitest` | Run all tests |
+### Root (Backend)
+
+| Script              | Command                       | Description                         |
+| ------------------- | ----------------------------- | ----------------------------------- |
+| `npm run api:dev`   | `tsx src/api/server.ts`       | Start the Express REST API          |
+| `npm run api:watch` | `tsx watch src/api/server.ts` | Start the Express API in watch mode |
+| `npm run dev`       | `tsx src/main.ts`             | Run the legacy CLI GA entry point   |
+| `npm run db:seed`   | `tsx src/db/seed.ts`          | Seed the database with sample data  |
+| `npm test`          | `vitest`                      | Run all tests                       |
+
+### Frontend
+
+| Script          | Command                | Description                   |
+| --------------- | ---------------------- | ----------------------------- |
+| `npm run dev`   | `vite`                 | Start the Vite React app      |
+| `npm run build` | `tsc -b && vite build` | Build frontend for production |
+| `npm run lint`  | `eslint .`             | Run ESLint                    |
 
 ---
 
 ## Configuration
 
-### GA Parameters (`src/main.ts`)
+### GA Parameters (via API or CLI)
 
-| Parameter | Value | Description |
-|---|---|---|
-| `populationSize` | `50` | Chromosomes per generation |
-| `generations` | `300` | Number of evolution cycles |
-| `tournamentSize` | `3` | Contestants per selection tournament |
-| `mutationRate` | `0.15` | Probability of gene mutation |
-| `elitisimCount` | `2` | Top chromosomes preserved each generation |
+| Parameter        | Default Value | Description                               |
+| ---------------- | ------------- | ----------------------------------------- |
+| `populationSize` | `200`         | Chromosomes per generation                |
+| `generations`    | `70`          | Number of evolution cycles                |
+| `tournamentSize` | `3`           | Contestants per selection tournament      |
+| `mutationRate`   | `0.30`        | Probability of gene mutation              |
+| `elitisimCount`  | `2`           | Top chromosomes preserved each generation |
 
 ### Environment Variables
 
-| Variable | Description |
-|---|---|
+| Variable       | Description                            |
+| -------------- | -------------------------------------- |
 | `DATABASE_URL` | SQLite file path, e.g. `file:./dev.db` |
+| `PORT`         | Express server port (default: 3000)    |
+| `CORS_ORIGIN`  | Allowed origins for CORS (default: \*) |
 
 ---
 
 ## Changelog
+
+### 2026-04 — Full-Stack Migration
+
+- Added **React Frontend** using Vite, TailwindCSS (v4), Zustand, and Framer Motion.
+- Migrated GA invocation from CLI to a structured **Express API**.
+- Added full CRUD endpoints for database entities.
+- Implemented rate-limiting and robust error handling for API.
 
 ### 2026-03-17 — Conflict-Aware Repair
 
@@ -675,6 +722,7 @@ npm run dev
 New module implementing greedy conflict-aware repair, applied to every chromosome produced by the GA loop to eliminate hard constraint violations (room-time and lecturer-time collisions) as quickly as possible after crossover and mutation.
 
 Key changes:
+
 - `buildConflictIndex()` — single O(n·s) pass that builds room-time and lecturer-time usage maps keyed by composite strings (`"roomId-timeSlotId"`, `"lecturerId-timeSlotId"`).
 - `scoreGeneConflicts()` — scores each gene by how many collisions it is involved in.
 - `findBestSlot()` — for a conflicting slot, searches `possibleTimeSlotIds` for the alternative with the fewest remaining conflicts; returns the current slot unchanged when no better option exists (edge-case least-bad strategy).
@@ -689,11 +737,3 @@ Key changes:
 **Added `src/tests/ga/repair.test.ts`**
 
 Seven Vitest test suites covering: room-time conflict resolution, lecturer-time conflict resolution, three-gene pile-up, multi-session genes (no duplicates within a gene), conflict-free no-op, unresolvable conflict edge case, unknown `offeringId` edge case, and empty inputs.
-
-**Updated `README.md`**
-
-- Table of Contents: added *Conflict-Aware Repair* and *Changelog* entries.
-- Architecture diagram: shows `repairChromosome` at both the initial population step and the post-mutation step.
-- Project Structure: added `repair.ts` and `src/tests/ga/repair.test.ts` entries.
-- New **Conflict-Aware Repair** section documenting the four-stage algorithm and all edge cases.
-- New **Tests** subsection for `repair.test.ts` with a table of all test suites.
